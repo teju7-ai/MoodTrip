@@ -2,6 +2,21 @@
 
 **Mood and Budget-Aware AI Travel Itinerary Planner**
 
+## Open MoodTrip
+
+**[Open the live website](https://mood-trip-mu.vercel.app/)** · **[Start planning a trip](https://mood-trip-mu.vercel.app/planner)**
+
+Open either link on your phone or computer. No installation or commands are needed, and the developer's computer does not need to stay running. Share the website link with teachers and teammates.
+
+## Project report
+
+- [Read the provisional project report as a PDF](output/report/MoodTrip_Project_Report.pdf)
+- [Download the editable Word report](output/report/MoodTrip_Project_Report.docx)
+
+The report includes editable placeholders for student, team, course, and guide details. Check the Word copy's pagination before submitting it.
+
+## Overview
+
 MoodTrip creates a day-by-day travel outline from a destination, trip duration, activities-and-food budget, and selected mood. It is an AI course group-project prototype and a planner, with no booking or payment functionality.
 
 ## Features
