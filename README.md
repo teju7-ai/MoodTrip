@@ -118,6 +118,22 @@ npm run build
 
 This builds frontend files into `dist/`. It does not deploy the Express backend or configure a production API connection. Production deployment needs both parts configured.
 
+## Deploy to Vercel
+
+This repository includes a Vercel configuration for both the Vite frontend and the Express API. The shared Express app is in `server/app.mjs`; `server/index.mjs` starts it locally, and `api/index.mjs` handles hosted API requests. Frontend routes, including `/shared/...`, can be opened directly.
+
+1. Sign into Vercel and import the `teju7-ai/MoodTrip` GitHub repository.
+2. Keep the root directory at the repository root and the framework set to Vite. The build command and output directory are supplied by `vercel.json`.
+3. Add these environment variables privately in Vercel for Production (and Preview if you want preview builds to use the services):
+   - `OPENROUTER_API_KEY`
+   - `GEOAPIFY_API_KEY`
+   - `SUPABASE_URL`
+   - `SUPABASE_SECRET_KEY`
+4. Keep Fluid compute enabled. The API function allows up to 300 seconds; individual provider requests still have their own shorter timeouts.
+5. Deploy, then open `/api/health` on the deployed domain. Generate an itinerary, save a rating, and test a share link in a private browser window.
+
+Use the values from your local `.env`, never commit them or prefix secret variables with `VITE_`. A public website link exists only after a successful deployment. Once deployed, share links use the deployed website's domain. Existing localhost links remain local links.
+
 ## Saving and sharing
 
 - Generated itineraries are stored in Supabase.
