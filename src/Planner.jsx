@@ -367,7 +367,7 @@ export default function Planner() {
                           htmlFor="destination"
                           className="mb-3 block font-bold"
                         >
-                          Your destination
+                            Your destination
                         </label>
 
                         <input
@@ -375,7 +375,7 @@ export default function Planner() {
                           type="text"
                           required
                           maxLength={80}
-                          placeholder="For example, Jaipur, India"
+                            placeholder="For example, Jaipur or Taj Mahal, Agra"
                           value={trip.destination}
                           onChange={(event) =>
                             updateTrip('destination', event.target.value)
@@ -385,7 +385,7 @@ export default function Planner() {
                         />
 
                         <p className="mt-3 text-sm text-ink/65">
-                          Enter a city or region. Add the country if needed.
+                          Enter a city, region, or landmark. Add the city or country for a more precise match.
                         </p>
                       </>
                     )}

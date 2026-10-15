@@ -44,7 +44,7 @@ Gemini was tested during development. The current generation code uses OpenRoute
 ## How the AI flow works
 
 1. The Planner collects the user's destination, days, budget, and mood.
-2. The backend resolves the destination using Geoapify geocoding.
+2. The backend resolves cities, regions, and landmarks using Geoapify geocoding. Matches with confidence below 0.8 (or missing confidence) are rejected with a request for a more specific destination.
 3. It searches within 15 km of the resolved center for mood-related places and meal options.
 4. Mood-to-category rules assign initial scores.
 5. The feedback ranker reads up to 200 recent rated itineraries for the same mood and makes small score adjustments for matching place IDs.

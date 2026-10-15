@@ -41,10 +41,9 @@ async function requestGeoapify(path, parameters) {
   return response.json()
 }
 
-async function findDestination(destination) {
+export async function findDestination(destination) {
   const data = await requestGeoapify('/v1/geocode/search', {
     text: destination,
-    type: 'locality',
     format: 'json',
     limit: '1',
     lang: 'en',
@@ -59,6 +58,15 @@ async function findDestination(destination) {
   ) {
     throw new Error(
       'Destination not found. Try adding the state or country.',
+    )
+  }
+
+  // A locality-only search excludes landmarks and can match just one word
+  // (for example, "Mahal" instead of the Taj Mahal). Do not plan around
+  // a weak match even when the provider labels it a "full_match".
+  if (!Number.isFinite(location.rank?.confidence) || location.rank.confidence < 0.8) {
+    throw new Error(
+      'Destination match is uncertain. Add the city, state, or country (for example, Taj Mahal, Agra, India).',
     )
   }
 
