@@ -1,4 +1,5 @@
 import 'dotenv/config'
+import { signDestination, readDestination } from './destinationSelection.mjs'
 import {
   getMoodProfile,
   getMoodScore,
@@ -6,8 +7,8 @@ import {
 } from './moodProfiles.mjs'
 
 // Search within 15 km of the destination's resolved center.
+// This is a nearby search, not a search of an entire state or country.
 const SEARCH_RADIUS = 15000
-const MAX_DESTINATION_QUERY_LENGTH = 80
 
 async function requestGeoapify(path, parameters) {
   const apiKey = process.env.GEOAPIFY_API_KEY
@@ -17,12 +18,20 @@ async function requestGeoapify(path, parameters) {
   }
 
   const url = new URL(path, 'https://api.geoapify.com')
-  url.search = new URLSearchParams({ ...parameters, apiKey }).toString()
+
+  url.search = new URLSearchParams({
+    ...parameters,
+    apiKey,
+  }).toString()
 
   let response
+
   try {
-    response = await fetch(url, { signal: AbortSignal.timeout(30000) })
+    response = await fetch(url, {
+      signal: AbortSignal.timeout(30000),
+    })
   } catch {
+    // Avoid printing request URLs because they contain the API key.
     throw new Error('Could not reach Geoapify. Please try again.')
   }
 
@@ -33,109 +42,78 @@ async function requestGeoapify(path, parameters) {
   return response.json()
 }
 
-function normalizeLocation(result, fallback = '') {
-  if (!result || !Number.isFinite(result.lat) || !Number.isFinite(result.lon)) {
-    return null
+export async function suggestDestinations(query) {
+  if (typeof query !== 'string' || query.trim().length < 2 || query.trim().length > 80) {
+    throw Object.assign(new Error('Enter between 2 and 80 characters to search destinations.'), { status: 400 })
   }
-
-  return {
-    id: typeof result.place_id === 'string' ? result.place_id : null,
-    name: typeof result.formatted === 'string' && result.formatted.trim()
-      ? result.formatted.trim()
-      : fallback,
-    latitude: result.lat,
-    longitude: result.lon,
-    country: result.country ?? '',
-    countryCode: result.country_code ?? '',
-    resultType: result.result_type ?? result.type ?? '',
-  }
+  const data = await requestGeoapify('/v1/geocode/autocomplete', {
+    text: query.trim(), format: 'json', limit: '6', lang: 'en',
+  })
+  const seen = new Set()
+  return (data.results ?? []).filter((place) => {
+    if (!place.formatted || !Number.isFinite(place.lat) || Math.abs(place.lat) > 90 ||
+        !Number.isFinite(place.lon) || Math.abs(place.lon) > 180) return false
+    const key = `${place.formatted}:${place.lat}:${place.lon}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  }).slice(0, 6).map((place) => ({
+    name: (place.name || place.address_line1 || place.formatted).slice(0, 80),
+    label: place.formatted,
+    type: place.result_type || 'place',
+    token: signDestination({
+      name: place.formatted, latitude: place.lat, longitude: place.lon,
+      country: place.country ?? '', countryCode: place.country_code ?? '',
+    }),
+  }))
 }
 
-export async function searchDestinationSuggestions(query) {
-  const text = typeof query === 'string' ? query.trim() : ''
-
-  if (!text || text.length > MAX_DESTINATION_QUERY_LENGTH) {
-    return []
-  }
-
+export async function findDestination(destination) {
   const data = await requestGeoapify('/v1/geocode/search', {
-    text,
+    text: destination,
     format: 'json',
-    limit: '6',
+    limit: '1',
     lang: 'en',
   })
 
-  return (Array.isArray(data.results) ? data.results : [])
-    .map((result) => {
-      const location = normalizeLocation(result, text)
-      if (!location) return null
-
-      return {
-        ...location,
-        label: location.name,
-        name: result.name ?? result.street ?? location.name,
-      }
-    })
-    .filter(Boolean)
-}
-
-function validateSelectedDestination(selection) {
-  if (!selection || typeof selection !== 'object') return null
-
-  const name = typeof selection.label === 'string'
-    ? selection.label.trim()
-    : ''
-  const latitude = Number(selection.latitude)
-  const longitude = Number(selection.longitude)
+  const location = data.results?.[0]
 
   if (
-    !name ||
-    name.length > MAX_DESTINATION_QUERY_LENGTH ||
-    !Number.isFinite(latitude) ||
-    !Number.isFinite(longitude) ||
-    latitude < -90 ||
-    latitude > 90 ||
-    longitude < -180 ||
-    longitude > 180
+    !location ||
+    !Number.isFinite(location.lat) ||
+    !Number.isFinite(location.lon)
   ) {
-    return null
-  }
-
-  return {
-    id: typeof selection.id === 'string' ? selection.id : null,
-    name,
-    latitude,
-    longitude,
-    country: typeof selection.country === 'string' ? selection.country : '',
-    countryCode:
-      typeof selection.countryCode === 'string'
-        ? selection.countryCode
-        : '',
-    resultType:
-      typeof selection.resultType === 'string'
-        ? selection.resultType
-        : '',
-  }
-}
-
-async function findDestination(destination) {
-  const suggestions = await searchDestinationSuggestions(destination)
-  const location = suggestions[0]
-
-  if (!location) {
     throw new Error(
-      'Destination not found. Choose a suggestion or add the city and country.',
+      'Destination not found. Try adding the state or country.',
     )
   }
 
-  return location
+  // A locality-only search excludes landmarks and can match just one word
+  // (for example, "Mahal" instead of the Taj Mahal). Do not plan around
+  // a weak match even when the provider labels it a "full_match".
+  if (!Number.isFinite(location.rank?.confidence) || location.rank.confidence < 0.8) {
+    throw new Error(
+      'Destination match is uncertain. Add the city, state, or country (for example, Taj Mahal, Agra, India).',
+    )
+  }
+
+  return {
+    name: location.formatted ?? destination,
+    latitude: location.lat,
+    longitude: location.lon,
+    country: location.country ?? '',
+    countryCode: location.country_code ?? '',
+  }
 }
 
 async function searchNearby(location, categories, limit) {
   const data = await requestGeoapify('/v2/places', {
     categories: categories.join(','),
-    filter: `circle:${location.longitude},${location.latitude},${SEARCH_RADIUS}`,
-    bias: `proximity:${location.longitude},${location.latitude}`,
+    filter:
+      `circle:${location.longitude},` +
+      `${location.latitude},${SEARCH_RADIUS}`,
+    bias:
+      `proximity:${location.longitude},${location.latitude}`,
     limit: String(limit),
     lang: 'en',
   })
@@ -143,30 +121,35 @@ async function searchNearby(location, categories, limit) {
   return data.features ?? []
 }
 
-export async function getCandidatePlaces({
-  destination,
-  destinationSelection,
-  mood,
-}) {
-  const cleanedDestination = typeof destination === 'string'
-    ? destination.trim()
-    : ''
+export async function getCandidatePlaces({ destination, mood, destinationToken }) {
+  const cleanedDestination =
+    typeof destination === 'string' ? destination.trim() : ''
 
-  if (!cleanedDestination || cleanedDestination.length > MAX_DESTINATION_QUERY_LENGTH) {
+  if (
+    !cleanedDestination ||
+    cleanedDestination.length > 80
+  ) {
     throw new Error('Enter a destination between 1 and 80 characters.')
   }
 
   const profile = getMoodProfile(mood)
-  const location = destinationSelection
-    ? validateSelectedDestination(destinationSelection)
+  const location = destinationToken !== undefined
+    ? readDestination(destinationToken)
     : await findDestination(cleanedDestination)
 
-  if (!location) {
-    throw new Error('Choose a valid destination suggestion before searching.')
-  }
+  // Separate searches prevent meal options from crowding out attractions.
+  const moodResults = await searchNearby(
+    location,
+    profile.categories,
+    60,
+  )
 
-  const moodResults = await searchNearby(location, profile.categories, 60)
-  const mealResults = await searchNearby(location, mealCategories, 30)
+  const mealResults = await searchNearby(
+    location,
+    mealCategories,
+    30,
+  )
+
   const uniquePlaces = new Map()
 
   for (const feature of [...moodResults, ...mealResults]) {
@@ -175,14 +158,22 @@ export async function getCandidatePlaces({
     const latitude = properties.lat
     const longitude = properties.lon
 
-    if (!name || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    // Keep named places with usable coordinates.
+    if (
+      !name ||
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(longitude)
+    ) {
       continue
     }
 
     const categories = Array.isArray(properties.categories)
       ? properties.categories
       : []
-    const id = properties.place_id ?? `${name}:${latitude}:${longitude}`
+
+    const id =
+      properties.place_id ??
+      `${name}:${latitude}:${longitude}`
 
     if (uniquePlaces.has(id)) continue
 
@@ -204,7 +195,8 @@ export async function getCandidatePlaces({
   const places = [...uniquePlaces.values()].sort(
     (first, second) =>
       second.moodScore - first.moodScore ||
-      (first.distanceMeters ?? Infinity) - (second.distanceMeters ?? Infinity),
+      (first.distanceMeters ?? Infinity) -
+        (second.distanceMeters ?? Infinity),
   )
 
   if (places.length === 0) {

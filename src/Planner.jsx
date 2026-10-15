@@ -16,6 +16,7 @@ import {
   Moon,
 } from 'lucide-react'
 import Loading from './Loading.jsx'
+import DestinationSearch from './DestinationSearch.jsx'
 import { requestItinerary } from './api.js'
 
 const moods = [
@@ -68,6 +69,7 @@ export default function Planner() {
   const reduceMotion = useReducedMotion()
   const requestRef = useRef(null)
 
+  const [selectedDestination, setSelectedDestination] = useState(null)
   const [step, setStep] = useState(0)
   const [direction, setDirection] = useState(1)
   const [reviewing, setReviewing] = useState(false)
@@ -102,7 +104,7 @@ export default function Planner() {
   function handleNext(event) {
     event.preventDefault()
 
-    if (step === 0 && !trip.destination.trim()) return
+    if (step === 0 && !selectedDestination) return
     if (step === 3 && !trip.mood) return
 
     if (step === 3) {
@@ -170,7 +172,7 @@ export default function Planner() {
 
   const canContinue =
     step === 0
-      ? Boolean(trip.destination.trim())
+      ? Boolean(selectedDestination)
       : step === 3
         ? Boolean(trip.mood)
         : true
@@ -227,7 +229,7 @@ export default function Planner() {
               <div>
                 <dt className="text-sm">Destination</dt>
                 <dd className="mt-1 break-words text-2xl font-black">
-                  {trip.destination}
+                  {selectedDestination?.label ?? trip.destination}
                 </dd>
               </div>
 
@@ -362,32 +364,18 @@ export default function Planner() {
 
                   <div className="mt-8">
                     {step === 0 && (
-                      <>
-                        <label
-                          htmlFor="destination"
-                          className="mb-3 block font-bold"
-                        >
-                            Your destination
-                        </label>
-
-                        <input
-                          id="destination"
-                          type="text"
-                          required
-                          maxLength={80}
-                            placeholder="For example, Jaipur or Taj Mahal, Agra"
-                          value={trip.destination}
-                          onChange={(event) =>
-                            updateTrip('destination', event.target.value)
-                          }
-                          className="w-full rounded-2xl border-2
-                            border-ink bg-paper px-5 py-4 text-lg"
-                        />
-
-                        <p className="mt-3 text-sm text-ink/65">
-                          Enter a city, region, or landmark. Add the city or country for a more precise match.
-                        </p>
-                      </>
+                      <DestinationSearch
+                        selected={selectedDestination}
+                        onSelect={(place) => {
+                          setSelectedDestination(place)
+                          setError('')
+                          setTrip((current) => ({
+                            ...current,
+                            destination: place?.name ?? '',
+                            destinationToken: place?.token,
+                          }))
+                        }}
+                      />
                     )}
 
                     {step === 1 && (

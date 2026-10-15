@@ -23,6 +23,7 @@ MoodTrip creates a day-by-day travel outline from a destination, trip duration, 
 
 - Animated, responsive Home page with five mood cards.
 - Four-step Planner: destination, days, budget, and mood.
+- Search-as-you-type destination suggestions for cities, regions, and landmarks, with keyboard navigation and explicit selection.
 - Animated loading screen with a return-to-choices action.
 - AI-assisted itineraries with day tabs, suggested times, durations, estimated costs, and Google Maps links.
 - Itinerary storage, editable star ratings, and optional written feedback in Supabase.
