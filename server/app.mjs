@@ -59,10 +59,10 @@ app.post('/api/itinerary', async (request, response) => {
 })
 
 app.post('/api/ratings', async (request, response) => {
-  const { itineraryId, feedbackToken, rating } = request.body ?? {}
+  const { itineraryId, feedbackToken, rating, comment } = request.body ?? {}
 
   try {
-    const result = await saveRating({ itineraryId, feedbackToken, rating })
+    const result = await saveRating({ itineraryId, feedbackToken, rating, comment })
     return response.json(result)
   } catch (error) {
     console.log('Rating request failed:', error.message)

@@ -89,13 +89,14 @@ async function sendRatingRequest(path, body, signal) {
   return data
 }
 
-export async function saveItineraryRating(plan, rating, signal) {
+export async function saveItineraryRating(plan, rating, signal, comment = '') {
   return sendRatingRequest(
     '/api/ratings',
     {
       itineraryId: plan.id,
       feedbackToken: plan.feedbackToken,
       rating,
+      comment,
     },
     signal,
   )

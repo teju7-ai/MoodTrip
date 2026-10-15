@@ -11,25 +11,27 @@ import {
 } from './api.js'
 
 export default function Rating({ plan }) {
+  return <RatingForm key={`${plan.id}:${plan.feedbackToken ?? ''}:${Boolean(plan.isDemo)}`} plan={plan} />
+}
+
+function RatingForm({ plan }) {
+  const { id, feedbackToken } = plan
+  const canRate = !plan.isDemo && Boolean(feedbackToken)
   const [rating, setRating] = useState(0)
   const [savedRating, setSavedRating] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [comment, setComment] = useState('')
+  const [savedComment, setSavedComment] = useState('')
+  const [loading, setLoading] = useState(canRate)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   const saveControllerRef = useRef(null)
-  const canRate = !plan.isDemo && Boolean(plan.feedbackToken)
 
   useEffect(() => {
     const controller = new AbortController()
 
-    setRating(0)
-    setSavedRating(null)
-    setError('')
-    setLoading(canRate)
-
     if (canRate) {
-      loadItineraryRating(plan, controller.signal)
+      loadItineraryRating({ id, feedbackToken }, controller.signal)
         .then((result) => {
           if (controller.signal.aborted) return
 
@@ -46,6 +48,8 @@ export default function Rating({ plan }) {
 
           setRating(storedRating ?? 0)
           setSavedRating(storedRating)
+          setComment(result.comment ?? '')
+          setSavedComment(result.comment ?? '')
         })
         .catch((requestError) => {
           if (!controller.signal.aborted) {
@@ -64,7 +68,7 @@ export default function Rating({ plan }) {
       saveControllerRef.current?.abort()
       saveControllerRef.current = null
     }
-  }, [plan.id, plan.feedbackToken, canRate])
+  }, [id, feedbackToken, canRate])
 
   async function handleSave() {
     if (
@@ -87,15 +91,18 @@ export default function Rating({ plan }) {
         plan,
         rating,
         controller.signal,
+        comment,
       )
 
       if (controller.signal.aborted) return
 
-      if (result.rating !== rating) {
+      if (result.rating !== rating || result.comment !== comment.trim()) {
         throw new Error('The server did not confirm your selected rating.')
       }
 
       setSavedRating(result.rating)
+      setComment(result.comment)
+      setSavedComment(result.comment)
     } catch (requestError) {
       if (!controller.signal.aborted) {
         setError(requestError.message)
@@ -111,7 +118,7 @@ export default function Rating({ plan }) {
     }
   }
 
-  const hasChanges = rating > 0 && rating !== savedRating
+  const hasChanges = rating > 0 && (rating !== savedRating || comment.trim() !== savedComment)
 
   return (
     <MotionConfig reducedMotion="user">
@@ -159,6 +166,27 @@ export default function Rating({ plan }) {
               ))}
             </div>
 
+            <div className="mx-auto mt-6 max-w-xl text-left">
+              <label htmlFor="written-feedback" className="block font-bold">
+                Written feedback <span className="font-normal">(optional)</span>
+              </label>
+              <p id="feedback-help" className="mt-1 text-sm">
+                What did you like, and what could be improved? Your comments are shared with the MoodTrip team, not on public trip links.
+              </p>
+              <textarea
+                id="written-feedback"
+                aria-describedby="feedback-help feedback-count"
+                value={comment}
+                onChange={(event) => { setComment(event.target.value); setError('') }}
+                maxLength={1000}
+                rows={4}
+                disabled={loading || saving}
+                placeholder="Tell us about the places, budget, or pace of your plan…"
+                className="mt-3 w-full resize-y rounded-xl border-2 border-ink bg-paper p-4 text-ink focus:outline-2 focus:outline-offset-2 disabled:opacity-50"
+              />
+              <p id="feedback-count" className="mt-1 text-right text-sm">{comment.length}/1,000 characters</p>
+            </div>
+
             <button
               type="button"
               onClick={handleSave}
@@ -170,8 +198,8 @@ export default function Rating({ plan }) {
               {saving
                 ? 'Saving…'
                 : savedRating !== null
-                  ? 'Update rating'
-                  : 'Save rating'}
+                  ? 'Update feedback'
+                  : 'Save feedback'}
             </button>
 
             <p
@@ -180,14 +208,14 @@ export default function Rating({ plan }) {
               className="mt-4 min-h-6 text-sm font-bold"
             >
               {loading
-                ? 'Loading your rating…'
+                ? 'Loading your feedback…'
                 : saving
-                  ? 'Saving your rating…'
+                  ? 'Saving your feedback…'
                   : savedRating !== null && !hasChanges
-                    ? `Your ${savedRating}/5 rating is saved.`
+                    ? `Your feedback and ${savedRating}/5 rating are saved.`
                     : rating > 0
                       ? `Selected ${rating}/5. Save to confirm.`
-                      : 'Choose your stars, then save your rating.'}
+                      : 'Choose your stars, optionally add a comment, then save.'}
             </p>
 
             {error && (

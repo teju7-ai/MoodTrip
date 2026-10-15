@@ -28,6 +28,7 @@ create table if not exists public.ratings (
   rating smallint not null check (
     rating between 1 and 5
   ),
+  comment text not null default '' check (char_length(comment) <= 1000),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

@@ -25,7 +25,7 @@ MoodTrip creates a day-by-day travel outline from a destination, trip duration, 
 - Four-step Planner: destination, days, budget, and mood.
 - Animated loading screen with a return-to-choices action.
 - AI-assisted itineraries with day tabs, suggested times, durations, estimated costs, and Google Maps links.
-- Itinerary storage and editable star ratings in Supabase.
+- Itinerary storage, editable star ratings, and optional written feedback in Supabase.
 - Feedback-based place ranking for the same mood.
 - Confirm plan page with browser-based PDF export covering every day.
 - Share links that display an itinerary without the creator's rating-edit code.
@@ -55,6 +55,10 @@ Gemini was tested during development. The current generation code uses OpenRoute
 These checks do not verify actual opening hours, venue availability, entry prices, travel times, or duplicate physical venues represented by different source IDs.
 
 ## Feedback ranking
+
+After generating a trip, choose 1–5 stars and optionally write up to 1,000 characters in the feedback box. Save, edit, or clear the comment using the same form. Comments are stored in `public.ratings.comment`, visible to the project team in Supabase's Table Editor. They are excluded from public share links and are not used by the ranking algorithm. The creator's private feedback code is required to read or update feedback.
+
+For a new database, run `supabase/schema.sql`. For an existing database, run `supabase/migrations/20261015_written_feedback.sql` before deploying this version. Existing star ratings are preserved.
 
 The prototype uses a simple statistical ranker, not a trained recommendation model.
 
