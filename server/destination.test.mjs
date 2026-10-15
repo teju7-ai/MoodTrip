@@ -36,7 +36,7 @@ test('autocomplete returns distinct signed suggestions', async () => {
   const originalKey = process.env.GEOAPIFY_API_KEY
   process.env.GEOAPIFY_API_KEY = 'test-key'
   globalThis.fetch = async (url) => {
-    assert.equal(url.pathname, '/v1/geocode/autocomplete')
+    assert.equal(url.pathname, '/v1/geocode/search')
     assert.equal(url.searchParams.get('limit'), '6')
     return {
       ok: true,

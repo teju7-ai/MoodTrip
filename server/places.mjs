@@ -46,7 +46,10 @@ export async function suggestDestinations(query) {
   if (typeof query !== 'string' || query.trim().length < 2 || query.trim().length > 80) {
     throw Object.assign(new Error('Enter between 2 and 80 characters to search destinations.'), { status: 400 })
   }
-  const data = await requestGeoapify('/v1/geocode/autocomplete', {
+  // The autocomplete endpoint applies an implicit proximity bias based on the
+  // server region. On Vercel in the US, "Taj Mahal" therefore returned nearby
+  // businesses before the landmark in Agra. Forward search ranks globally.
+  const data = await requestGeoapify('/v1/geocode/search', {
     text: query.trim(), format: 'json', limit: '6', lang: 'en',
   })
   const seen = new Set()
